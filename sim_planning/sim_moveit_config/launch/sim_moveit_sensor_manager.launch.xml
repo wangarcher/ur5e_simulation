@@ -1,0 +1,6 @@
+<launch>
+  <param name="octomap_frame" type="string" value="odom_combined" />
+  <param name="octomap_resolution" type="double" value="0.1" />
+  <param name="max_range" type="double" value="5.0" />
+  <rosparam command="load" file="$(find sim_moveit_config)/config/sensors_vlp_pointcloud.yaml" />
+</launch>

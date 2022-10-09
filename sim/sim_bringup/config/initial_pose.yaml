@@ -1,0 +1,13 @@
+initial_pose:
+  joint_names: ["elbow_joint",
+                "shoulder_lift_joint",
+                "shoulder_pan_joint",
+                "wrist_1_joint",
+                "wrist_2_joint",
+                "wrist_3_joint"]
+  joint_values: [0.0,
+                 0.0,
+                 1.0,
+                 1.0,
+                 1.0,
+                 1.0]

@@ -1,0 +1,3 @@
+<launch>
+    <node pkg="sim_general_planning" type="x_arm_planning" name="x_arm_planning"  output="screen" />
+</launch>

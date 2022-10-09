@@ -1,0 +1,64 @@
+<launch><!--ros controller-->>
+
+    <!-- these are the arguments you can pass this launch file, for example paused:=true -->
+    <arg name="paused" default="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="headless" value="false"/> <!-- Inert - see gazebo_ros_pkgs issue #491 -->
+    <arg name="recording" value="false"/>
+    <arg name="debug" value="false"/>
+
+    <!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+    <include file="$(find gazebo_ros)/launch/empty_world.launch">
+        <arg name="world_name" value="$(find sim_gazebo)/world/example.world"/>
+        <arg name="debug" value="$(arg debug)" />
+        <arg name="gui" value="$(arg gui)" />
+        <arg name="paused" value="$(arg paused)"/>
+        <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+        <arg name="headless" value="$(arg headless)"/>
+    </include>
+
+    <node pkg="tf" type="static_transform_publisher" name="link1_broadcaster" args="0 0 0 0 0 0 1 world base_footprint 7" />
+
+    <!-- <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher" /> -->
+    <node pkg="rostopic" type="rostopic" name="fake_joint_calibration" args="pub /calibrated std_msgs/Bool true" />
+
+    <!-- <node pkg="tf" type="static_transform_publisher" name="ft300_static" args="0.0 0.0 0.0 0.0 0.0 0.0 ft300_sensor robotiq_ft_frame_id 1" /> -->
+    <!-- <node name="fake_wrench" pkg="sim_bringup" type="fake_wrench.py" required="true" output="screen">
+    </node> -->
+
+
+    <!-- Load the URDF into the ROS Parameter Server -->
+    <arg name="model" default="$(find xacro)/xacro  '$(find sim_description)/urdf/xacro/main.xacro'" />
+    <param name="robot_description" command="$(arg model)" />
+
+
+    <!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+    <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+    args="-urdf -model sim -param robot_description
+          -x 0
+          -y 4
+          -z 0.15
+          " />
+     <!-- -J shoulder_pan_joint  1
+          -J shoulder_lift_joint 0
+          -J elbow_joint  0
+          -J wrist_1_joint 0
+          -J wrist_2_joint 0
+          -J wrist_3_joint 0 -->
+    <!-- <rosparam file="$(find sim_cartesian_velocity_control)/config/joint_state_controller.yaml" command="load"/>
+    <node name="joint_state_controller_spawner" pkg="controller_manager" type="controller_manager" args="load joint_state_controller" respawn="false" output="screen"/> -->
+
+
+    <rosparam file="$(find sim_cartesian_velocity_control)/config/sim_vel_controller.yaml" command="load"/>
+    <node name="arm_controller_spawner_one" pkg="controller_manager" type="controller_manager" args="load sim_cartesian_velocity_controller_sim" respawn="false" output="screen"/>
+
+    <!-- <node pkg="sim_bringup" type="timed_roslaunch.sh" args="10 sim_bringup init_pose_start_controllers.launch" name="timed_start_controllers" output="screen">
+    </node> -->
+
+    <include file="$(find sim_moveit_config)/launch/sim_bringup_moveit.launch"/>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sim_description)/rviz/all.rviz" required="true"/>
+
+
+</launch>

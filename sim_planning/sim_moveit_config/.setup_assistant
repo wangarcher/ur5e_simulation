@@ -1,0 +1,11 @@
+moveit_setup_assistant_config:
+  URDF:
+    package: sim_description
+    relative_path: urdf/xacro/main.xacro
+    xacro_args: ""
+  SRDF:
+    relative_path: config/sim.srdf
+  CONFIG:
+    author_name: archer
+    author_email: archer7wang@outlook.com
+    generated_timestamp: 1632746790

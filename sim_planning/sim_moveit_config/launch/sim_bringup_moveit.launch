@@ -1,0 +1,10 @@
+<launch>
+    <!-- ros_control arm launch file -->
+    <include file="$(find sim_moveit_config)/launch/sim_gazebo_states.launch" />   
+
+    <!-- ros_control trajectory control dof arm launch file -->
+    <include file="$(find sim_moveit_config)/launch/sim_trajectory_controller.launch" />
+
+    <!-- moveit launch file -->
+    <include file="$(find sim_moveit_config)/launch/moveit_planning_execution.launch" />
+</launch>

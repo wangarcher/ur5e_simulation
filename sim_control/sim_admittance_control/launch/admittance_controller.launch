@@ -1,0 +1,31 @@
+<?xml version="1.0" ?>
+<launch>
+  <arg name="STATE_TOPIC_ARM" default="/sim_cartesian_velocity_controller_sim/ee_state"/>
+  <arg name="CMD_TOPIC_ARM" default="/sim_cartesian_velocity_controller_sim/command_cart_vel"/>
+  <arg name="WRENCH_FILTER_FACTOR" default="0.90" />
+  <arg name="FORCE_DEAD_ZONE_THRES" default="0.0" />
+  <arg name="TORQUE_DEAD_ZONE_THRES" default="0.0" />
+  <arg name="WRENCH_TOPIC" default="/ft_sensor/data" /> <!-- TO BE MODIFIED-->
+  <arg name="ADMITTANCE_PARAMS_FILE" default="$(find sim_admittance_control)/config/admittance_params.yaml" />
+
+  <param name="topic_arm_state" value="$(arg STATE_TOPIC_ARM)"/>
+  <param name="topic_arm_command" value="$(arg CMD_TOPIC_ARM) "/>
+  <param name="topic_external_wrench" value="$(arg WRENCH_TOPIC)"/>
+  <param name="wrench_filter_factor" value="$(arg WRENCH_FILTER_FACTOR)"/>
+  <param name="force_dead_zone_thres" value="$(arg FORCE_DEAD_ZONE_THRES)"/>
+  <param name="torque_dead_zone_thres" value="$(arg TORQUE_DEAD_ZONE_THRES)"/>
+  
+  <arg name="sim" default="true" />
+  <arg name="F/T_sensor" default="false" />
+
+  <rosparam file="$(arg ADMITTANCE_PARAMS_FILE)" command="load"/>
+
+  <rosparam file="$(find sim_admittance_control)/config/sim_vel_controller.yaml" command="load"/>
+
+  <node name="arm_controller_spawner_tri" pkg="controller_manager" type="controller_manager" args="load sim_cartesian_velocity_controller_sim" respawn="false" output="screen"/>
+
+
+  <node pkg="sim_admittance_control" name="sim_admittance_controller" type="admittance_controller_node" output="screen"/>
+
+
+</launch>

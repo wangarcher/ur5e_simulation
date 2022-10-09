@@ -1,0 +1,72 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sim" >
+
+    <xacro:include filename="$(find sim_description)/urdf/xacro/common.gazebo.xacro" />
+    <xacro:include filename="$(find sim_description)/urdf/xacro/ur5e.urdf.xacro" />
+
+    <xacro:property name="manipulator_offset_x" value="0.0" />
+    <xacro:property name="manipulator_offset_y" value="0.0" />
+    <xacro:property name="manipulator_offset_z" value="0.05" />
+
+    <xacro:d435_gazebo />
+
+    <xacro:ur5e_robot prefix="" joint_limited="false"
+        shoulder_pan_lower_limit="${-2.0*pi}" shoulder_pan_upper_limit="${2.0*pi}"
+        shoulder_lift_lower_limit="${-2.0*pi}" shoulder_lift_upper_limit="${2.0*pi}"
+        elbow_joint_lower_limit="${-2.0*pi}" elbow_joint_upper_limit="${2.0*pi}"
+        wrist_1_lower_limit="${-2.0*pi}" wrist_1_upper_limit="${2.0*pi}"
+        wrist_2_lower_limit="${-2.0*pi}" wrist_2_upper_limit="${2.0*pi}"
+        wrist_3_lower_limit="${-2.0*pi}" wrist_3_upper_limit="${2.0*pi}"/>
+
+
+    <link name="base_footprint">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="1.0 1.0 0.1" />
+            </geometry>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="1.0 1.0 0.1" />
+            </geometry>
+        </collision>
+        <surface>
+            <friction>
+                <ode>
+                <mu>100</mu>
+                <mu2>100</mu2>
+                </ode>
+            </friction>
+        </surface>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <mass value="100"/>
+            <inertia
+              ixx="1.0" ixy="0.0" ixz="0.0"
+              iyy="1.0" iyz="0.0"
+              izz="1.0"/>
+          </inertial>
+    </link>
+
+    <joint name="associate_joint" type="fixed">
+        <origin xyz="${manipulator_offset_x} ${manipulator_offset_y} ${manipulator_offset_z}" rpy="0 0 0" />
+        <parent link="base_footprint"/>
+        <child link="base_link"/>
+    </joint>
+
+    <gazebo>
+      <plugin name="p3d_base_controller" filename="libgazebo_ros_p3d.so">
+        <alwaysOn>true</alwaysOn>
+        <updateRate>50.0</updateRate>
+        <bodyName>ee_link</bodyName>
+        <topicName>wrist_pose_ground_truth</topicName>
+        <gaussianNoise>0.0</gaussianNoise>
+        <frameName>world</frameName>
+        <xyzOffsets>0 0 0</xyzOffsets>
+        <rpyOffsets>0 0 0</rpyOffsets>
+      </plugin>
+    </gazebo>
+
+</robot>
