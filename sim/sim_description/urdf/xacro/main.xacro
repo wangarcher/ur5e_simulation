@@ -19,19 +19,20 @@
         wrist_3_lower_limit="${-2.0*pi}" wrist_3_upper_limit="${2.0*pi}"/>
 
 
-    <link name="base_footprint">
+    <link name="world"/>
+    <joint name="fixed" type="fixed">
+        <origin xyz="${manipulator_offset_x} ${manipulator_offset_y} ${manipulator_offset_z}" rpy="0 0 0" />
+        <parent link="world"/>
+        <child link="base_table"/>
+    </joint>
+
+    <link name="base_table">
         <visual>
             <origin xyz="0 0 0" rpy="0 0 0" />
             <geometry>
                 <box size="1.0 1.0 0.1" />
             </geometry>
         </visual>
-        <collision>
-            <origin xyz="0 0 0" rpy="0 0 0" />
-            <geometry>
-                <box size="1.0 1.0 0.1" />
-            </geometry>
-        </collision>
         <surface>
             <friction>
                 <ode>
@@ -40,19 +41,11 @@
                 </ode>
             </friction>
         </surface>
-        <inertial>
-            <origin xyz="0 0 0" rpy="0 0 0"/>
-            <mass value="100"/>
-            <inertia
-              ixx="1.0" ixy="0.0" ixz="0.0"
-              iyy="1.0" iyz="0.0"
-              izz="1.0"/>
-          </inertial>
     </link>
 
     <joint name="associate_joint" type="fixed">
         <origin xyz="${manipulator_offset_x} ${manipulator_offset_y} ${manipulator_offset_z}" rpy="0 0 0" />
-        <parent link="base_footprint"/>
+        <parent link="base_table"/>
         <child link="base_link"/>
     </joint>
 
