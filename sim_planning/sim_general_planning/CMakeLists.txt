@@ -251,3 +251,8 @@ add_executable(
   src/general_arm_planning.cpp
   src/general_arm_planning_main.cpp)
 target_link_libraries(general_arm_planning ${catkin_LIBRARIES})
+
+add_executable(
+  x_arm_planning 
+  src/x_arm_planning_main.cpp)
+target_link_libraries(x_arm_planning ${catkin_LIBRARIES})

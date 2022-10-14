@@ -38,6 +38,4 @@
     <include file="$(find sim_moveit_config)/launch/sim_bringup_moveit.launch"/>
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sim_description)/rviz/all.rviz" required="true" />
 
-
-
 </launch>
