@@ -2,13 +2,16 @@
 ur5e_simulation
 
 ### 1. Requirements
-System: Ubuntu 18.04, Ubuntu 20.04
-ROS: Melodic, Noetic
-Moveit
-Gazebo
+System: Ubuntu 18.04, Ubuntu 20.04   
+
+ROS: Melodic, Noetic    
+ 
+Moveit   
+
+Gazebo   
 
 ### 2. Other Dependencies
-In case some dependencies were missed for the project, please check if you have installed the necessary dependencies down below.
+For some dependencies were missed for the project, please check the following instructions.
 ```
 sudo apt-get install ros-melodic-moveit-visual-tools
 sudo apt-get install ros-melodic-ros-controllers
@@ -22,11 +25,13 @@ cd roboticsgroup_gazebo_plugins
 mkdir build && cd build
 cmake ..
 make 
-#PLEASE BE ADVISED! The following command directly write a new .so lib into the system lib folder. It's effective, but very dangerous.
+```
+**PLEASE BE ADVISED!The following command would directly write a new .so lib into the system lib folder. It's effective, but a little bit dangerous.**
+```
 sudo cp devel/lib/libroboticsgroup_gazebo_mimic_joint_plugin.so /usr/lib/x86_64-linux-gnu/<gazebo-9>or<gazebo-11>/plugins/
 ```
 
-NOTE: There might be more dependencies needed due to vairous reasons. If you spot any, please let me know.(archer7wang@outlook.com)
+**NOTE:**There might be more dependencies needed due to vairous reasons. If you found any, please let me know.(archer7wang@outlook.com)
 
 ### 3. Usage
 Like ordinary ros projects, the simluation needs a clean workspace.
