@@ -108,7 +108,7 @@
         <parent link="base_table" />
         <child link="x_axle" />
         <axis xyz="1 0 0" />
-        <limit effort="30" velocity="100.0" lower="-0.5" upper="0.5" />
+        <limit effort="30" velocity="100.0" lower="-5" upper="5" />
     </joint>
 
     <link name="y_axle">
@@ -148,7 +148,47 @@
         <parent link="x_axle" />
         <child link="y_axle" />
         <axis xyz="0 1 0" />
-        <limit effort="30" velocity="100.0" lower="-0.5" upper="0.5" />
+        <limit effort="30" velocity="100.0" lower="-5" upper="5" />
+    </joint>
+
+    <link name="z_axle">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.03 0.03 0.10" />
+            </geometry>
+            <material name="Aquamarine1" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.03 0.03 0.03" />
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="10" />
+            <inertia
+                ixx="0.02" ixy="0.0" ixz="0.0"
+                iyy="0.85" iyz="0.0"
+                izz="0.85" />
+        </inertial>
+        <surface>
+            <friction>
+                <ode>
+                    <mu>100</mu>
+                    <mu2>100</mu2>
+                </ode>
+            </friction>
+        </surface>
+    </link>
+
+    <joint name="z_joint" type="prismatic">
+        <origin xyz="0 0 1.0" rpy="0 0 0"></origin>
+        <parent link="y_axle" />
+        <child link="z_axle" />
+        <axis xyz="0 0 1" />
+        <limit effort="30000000" velocity="100.0" lower="-0.5" upper="5.0" />
     </joint>
 
     <link name="plate">
@@ -185,7 +225,7 @@
 
     <joint name="r_joint" type="revolute">
         <origin xyz="0 0 0.06" rpy="0 0 0"></origin>
-        <parent link="y_axle" />
+        <parent link="z_axle" />
         <child link="plate" />
         <axis xyz="0 0 1" />
         <limit effort="30" velocity="100.0" lower="-6.28" upper="6.28" />
@@ -276,6 +316,17 @@
         </actuator>
     </transmission>
 
+    <transmission name="z_joint_trans">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="z_joint">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="z_joint_motor">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    
     <transmission name="r_joint_trans">
         <type>transmission_interface/SimpleTransmission</type>
         <joint name="r_joint">
