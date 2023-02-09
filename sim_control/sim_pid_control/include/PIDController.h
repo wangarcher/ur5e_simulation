@@ -17,7 +17,6 @@
 
 #include "std_srvs/Trigger.h"
 
-
 using namespace Eigen;
 
 typedef Matrix<double, 7, 1> Vector7d;
@@ -28,7 +27,6 @@ typedef Matrix<double, 3, 3> Matrix3d;
 typedef Matrix<double, 6, 6> Matrix6d;
 typedef Matrix<double, 3, 6> Matrix3_6d;
 typedef Matrix<double, 6, 3> Matrix6_3d;
-
 
 class PIDController
 {
@@ -42,7 +40,8 @@ protected:
   ///// Subscribers:
   // Subscriber for the arm state
   ros::Subscriber sub_arm_state_;
- 
+  ros::Subscriber sub_base_state_;
+
   ros::Subscriber sub_now_equilibrium_;
 
   ////// Publishers:
@@ -59,8 +58,11 @@ protected:
   // equilibrium orientation of the coupling spring
   Quaterniond equilibrium_orientation_;
 
+  // INPUT MODEL
+  Vector6d model_affect_ee_twist_;
+
   // OUTPUT COMMANDS
-  // final arm desired velocity 
+  // final arm desired velocity
   Vector6d arm_desired_twist_final_;
   Vector6d last_arm_desired_twist_final_;
 
@@ -82,7 +84,11 @@ protected:
   Vector3d arm_real_position_;
   Quaterniond arm_real_orientation_;
   Vector6d arm_real_twist_;
-  
+
+  Vector3d base_real_position_;
+  Quaterniond base_real_orientation_;
+  Vector6d base_real_twist_;
+
   ////// LOWPASS_FILTER
   Vector7d x_0, x_1, x_2, x_3, x_4, x_5, x_6;
   Vector7d y_0, y_1, y_2, y_3, y_4, y_5, y_6;
@@ -91,7 +97,7 @@ protected:
   Vector3d cx_0, cx_1, cx_2, cx_3;
   Vector3d cy_0, cy_1, cy_2, cy_3;
   Vector3d cmid_y;
-  
+
   // Transform from base_link to world
   Matrix6d rotation_base_;
 
@@ -113,15 +119,15 @@ protected:
 
   // Callbacks
   void state_arm_callback(const nav_msgs::OdometryConstPtr msg);
+  void base_state_callback(const nav_msgs::OdometryConstPtr msg);
   void now_equilibrium_callback(const geometry_msgs::PoseStampedConstPtr msg);
   // Util
-  bool get_rotation_matrix(Matrix6d & rotation_matrix,tf::TransformListener & listener,std::string from_frame,  std::string to_frame);
+  bool get_rotation_matrix(Matrix6d &rotation_matrix, tf::TransformListener &listener, std::string from_frame, std::string to_frame);
 
   void limit_to_workspace();
   void kalman_filter();
   void lowpass_filter();
   void send_commands_to_robot();
-
 
 public:
   PIDController(ros::NodeHandle &n, double frequency,

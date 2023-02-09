@@ -88,8 +88,8 @@ void Manipulator::tracking()
 void Manipulator::stablize()
 {
     custom_mode(controller_switch_);
-    preset_servo();
-    // memory_servo();
+    // preset_servo();
+    memory_servo();
 }
 
 bool Manipulator::plan_mode(ros::ServiceClient &controller_switch_)
@@ -167,13 +167,17 @@ void Manipulator::memory_servo()
 {
     Eigen::Vector3f arm_map_translation;
     Eigen::Quaternionf arm_map_orientation;
-
+    desired_ee_map_position_ << 0.50, 0, 1.7;
+    desired_ee_map_orientation_.coeffs() << 0, 0, 0, 1;
     while (n_.ok())
     {
-        arm_map_orientation = base_map_orientation_ * static_arm_base_orientation;
-        arm_map_translation = base_map_orientation_.toRotationMatrix() * static_arm_base_translation + base_map_translation_;
-        Eigen::Quaternionf desired_ee_arm_orientation = arm_map_orientation.inverse() * desired_ee_map_orientation_;
-        Eigen::Vector3f desired_ee_arm_position = arm_map_orientation.toRotationMatrix().inverse() * (desired_ee_map_position_ - arm_map_translation);
+        // arm_map_orientation = base_map_orientation_ * static_arm_base_orientation;
+        // arm_map_translation = base_map_orientation_.toRotationMatrix() * static_arm_base_translation + base_map_translation_;
+        // Eigen::Quaternionf desired_ee_arm_orientation = arm_map_orientation.inverse() * desired_ee_map_orientation_;
+        // Eigen::Vector3f desired_ee_arm_position = arm_map_orientation.toRotationMatrix().inverse() * (desired_ee_map_position_ - arm_map_translation);
+
+        Eigen::Quaternionf desired_ee_arm_orientation = base_map_orientation_.inverse() * desired_ee_map_orientation_;
+        Eigen::Vector3f desired_ee_arm_position = base_map_orientation_.toRotationMatrix().inverse() * (desired_ee_map_position_ - base_map_translation_);
         // ROS_INFO_STREAM("p: " << desired_ee_map_position_.transpose());
         ee_pose_msg.header.stamp = ros::Time::now();
         ee_pose_msg.pose.position.x = desired_ee_arm_position(0);
