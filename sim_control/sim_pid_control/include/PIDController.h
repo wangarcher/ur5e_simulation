@@ -47,7 +47,7 @@ protected:
   ////// Publishers:
   // Publisher for the twist of arm endeffector
   ros::Publisher pub_arm_cmd_;
-
+  ros::Publisher pub_feedback_;
   /////// ADMITTANCE PARAMETERS:
   // M_a_ -> Desired mass of arm
   // D_a_ -> Desired damping of arm
@@ -105,7 +105,7 @@ protected:
 
   // Transform from base_link to world
   Matrix6d rotation_base_;
-
+  bool pid_flag_;
   // TF:
   // Listeners
   tf::TransformListener listener_ft_;
