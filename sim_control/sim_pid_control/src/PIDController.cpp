@@ -245,9 +245,9 @@ void PIDController::compute_pid()
     // calculated_arm_twist(5) = 0;
     // error(2) = 0;
     // calculated_arm_twist(2) = 0;
-    equilibrium_position_(0) = 0.50;
-    equilibrium_position_(1) = 0.0;
-    equilibrium_position_(2) = 0.55;
+    // equilibrium_position_(0) = 0.50;
+    // equilibrium_position_(1) = 0.0;
+    // equilibrium_position_(2) = 0.55;
   }
 
   Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
