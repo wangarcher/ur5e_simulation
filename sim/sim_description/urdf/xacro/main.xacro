@@ -243,7 +243,7 @@
             <alwaysOn>true</alwaysOn>
             <updateRate>50.0</updateRate>
             <bodyName>ee_link</bodyName>
-            <topicName>wrist_pose_ground_truth</topicName>
+            <topicName>ee_pose_ground_truth</topicName>
             <gaussianNoise>0.0</gaussianNoise>
             <frameName>world</frameName>
             <xyzOffsets>0 0 0</xyzOffsets>

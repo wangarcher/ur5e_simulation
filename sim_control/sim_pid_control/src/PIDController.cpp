@@ -7,11 +7,13 @@ PIDController::PIDController(ros::NodeHandle &n,
                              std::vector<double> K_p,
                              std::vector<double> K_i,
                              std::vector<double> K_d,
+                             std::vector<double> N_p,
+                             std::vector<double> N_d,
                              std::vector<double> workspace_limits,
                              double arm_max_vel,
                              double arm_acc_upper_limit,
                              double arm_acc_lower_limit) : nh_(n), loop_rate_(frequency),
-                                                           K_p_(K_p.data()), K_i_(K_i.data()), K_d_(K_d.data()),
+                                                           K_p_(K_p.data()), K_i_(K_i.data()), K_d_(K_d.data()), N_p_(N_p.data()), N_d_(N_d.data()),
                                                            workspace_limits_(workspace_limits.data()),
                                                            arm_max_vel_(arm_max_vel),
                                                            arm_acc_upper_limit_(arm_acc_upper_limit),
@@ -29,7 +31,15 @@ PIDController::PIDController(ros::NodeHandle &n,
   sub_base_state_ = nh_.subscribe("/base_pose_ground_truth", 1,
                                   &PIDController::base_state_callback, this,
                                   ros::TransportHints().reliable().tcpNoDelay());
-  ////// Publishers
+
+  sub_presuppose_ = nh_.subscribe("/presuppose", 1,
+                                  &PIDController::presuppose_callback, this,
+                                  ros::TransportHints().reliable().tcpNoDelay());
+
+  sub_ee_ground_truth_ = nh_.subscribe("/ee_pose_ground_truth", 1,
+                                       &PIDController::ee_ground_truth_state_callback, this,
+                                       ros::TransportHints().reliable().tcpNoDelay());
+  // Publishers
   pub_arm_cmd_ = nh_.advertise<geometry_msgs::Twist>(topic_arm_command, 1);
 
   // Init integrator
@@ -106,11 +116,57 @@ void PIDController::base_state_callback(const nav_msgs::OdometryConstPtr msg)
 
   base_real_twist_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z,
       msg->twist.twist.angular.x, msg->twist.twist.angular.y, msg->twist.twist.angular.z;
+  Vector3d arm_map_translation = base_real_orientation_.toRotationMatrix() * arm_real_position_ + base_real_position_;
+  std::cout << "arm_map_translation" << arm_map_translation.transpose() << std::endl;
   Vector3d mid = base_real_twist_.bottomRows(3);
-  model_affect_ee_twist_.topRows(3) = 0.7 * (1.2 * base_real_twist_.topRows(3) + mid.cross(arm_real_position_));
   model_affect_ee_twist_.bottomRows(3) = base_real_twist_.bottomRows(3);
+  model_affect_ee_twist_.topRows(3) = base_real_twist_.topRows(3) + mid.cross(arm_map_translation);
+
+  // Vector3d mid = model_real_.bottomRows(3);
+  // model_affect_ee_twist_.bottomRows(3) = model_real_.bottomRows(3);
+  // model_affect_ee_twist_.topRows(3) = model_real_.topRows(3) + mid.cross(arm_map_translation);
+  ros::Duration duration = loop_rate_.expectedCycleTime();
+  double time_diff = duration.toSec();
+  model_affect_ee_acc_ = (model_affect_ee_twist_ - last_model_effect_ee_twist_) / time_diff;
+  last_model_effect_ee_twist_ = model_affect_ee_twist_;
   // ROS_INFO("getting the model state");
-  // std::cout << "for feedforward: " << model_affect_ee_twist_ << std::endl;
+  std::cout << "for feedforward: " << model_affect_ee_twist_.transpose() << std::endl;
+}
+
+void PIDController::ee_ground_truth_state_callback(const nav_msgs::OdometryConstPtr msg)
+{
+  std::cout << "time: " << msg->header.stamp.toSec() << std::endl;
+  std::cout << "ee real wrist: " << msg->twist.twist.linear.x << ", " << msg->twist.twist.linear.y << ", " << msg->twist.twist.linear.z << ", "
+            << msg->twist.twist.angular.x << ", " << msg->twist.twist.angular.y << ", " << msg->twist.twist.angular.z << std::endl;
+  std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
+  ee_map_real_twist_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z,
+      msg->twist.twist.angular.x, msg->twist.twist.angular.y, msg->twist.twist.angular.z;
+  // Vector3d mid = base_real_twist_.bottomRows(3);
+  // model_affect_ee_twist_.topRows(3) = base_real_twist_.topRows(3) + mid.cross(arm_real_position_);
+  // model_affect_ee_twist_.bottomRows(3) = -base_real_twist_.bottomRows(3);
+  // ros::Duration duration = loop_rate_.expectedCycleTime();
+  // double time_diff = duration.toSec();
+  // model_affect_ee_acc_ = (model_affect_ee_twist_ - last_model_effect_ee_twist_) / time_diff;
+  // last_model_effect_ee_twist_ = model_affect_ee_twist_;
+  // // ROS_INFO("getting the model state");
+  // // std::cout << "for feedforward: " << model_affect_ee_twist_ << std::endl;
+}
+
+void PIDController::presuppose_callback(const geometry_msgs::TwistConstPtr msg)
+{
+  // std::cout << "presuppose_twist: " << msg->linear.x << ", " << msg->linear.y << ", " << msg->linear.z << ", "
+  //  << msg->angular.x << ", " << msg->angular.y << ", " << msg->angular.z << std::endl;
+  // std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+  model_real_ << msg->linear.x, msg->linear.y, msg->linear.z, msg->angular.x, msg->angular.y, msg->angular.z;
+  // Vector3d mid = base_real_twist_.bottomRows(3);
+  // model_affect_ee_twist_.topRows(3) = base_real_twist_.topRows(3) + mid.cross(arm_real_position_);
+  // model_affect_ee_twist_.bottomRows(3) = -base_real_twist_.bottomRows(3);
+  // ros::Duration duration = loop_rate_.expectedCycleTime();
+  // double time_diff = duration.toSec();
+  // model_affect_ee_acc_ = (model_affect_ee_twist_ - last_model_effect_ee_twist_) / time_diff;
+  // last_model_effect_ee_twist_ = model_affect_ee_twist_;
+  // // ROS_INFO("getting the model state");
+  // // std::cout << "for feedforward: " << model_affect_ee_twist_ << std::endl;
 }
 
 void PIDController::now_equilibrium_callback(const geometry_msgs::PoseStampedConstPtr msg)
@@ -181,13 +237,27 @@ void PIDController::compute_pid()
     quat_rot_err.coeffs() << quat_rot_err.coeffs() / quat_rot_err.coeffs().norm();
   }
 
+  if (model_real_.norm() > 0.01)
+  {
+    // error.setZero();
+    // calculated_arm_twist.setZero();
+    // error(5) = 0;
+    // calculated_arm_twist(5) = 0;
+    // error(2) = 0;
+    // calculated_arm_twist(2) = 0;
+    equilibrium_position_(0) = 0.50;
+    equilibrium_position_(1) = 0.0;
+    equilibrium_position_(2) = 0.55;
+  }
+
   Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
   error.bottomRows(3) << err_arm_des_orient.axis() * err_arm_des_orient.angle();
   error.topRows(3) = arm_real_position_ - equilibrium_position_;
 
   calculated_arm_twist = error - last_error_;
+  std::cout << "error: " << error.transpose() << std::endl;
 
-  arm_desired_twist_final_ = -K_p_ * error - K_d_ * calculated_arm_twist - model_affect_ee_twist_;
+  arm_desired_twist_final_ = -K_p_ * error - K_d_ * calculated_arm_twist - N_p_ * model_affect_ee_twist_ - N_d_ * model_affect_ee_acc_;
   ros::Duration duration = loop_rate_.expectedCycleTime();
   double time_diff = duration.toSec();
 
