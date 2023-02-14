@@ -2,9 +2,10 @@
 #define ADMITTANCECONTROLLER_H
 
 #include "ros/ros.h"
-#include "sim_admittance_control/PoseTwist.h"
 #include "geometry_msgs/WrenchStamped.h"
 #include "geometry_msgs/TwistStamped.h"
+#include "nav_msgs/Odometry.h"
+#include "sensor_msgs/Imu.h"
 #include <tf/transform_datatypes.h>
 #include <tf_conversions/tf_eigen.h>
 #include <tf/transform_listener.h>
@@ -32,7 +33,6 @@ protected:
   // Rate of the run loop
   ros::Rate loop_rate_;
 
-
   ///// Subscribers:
   // Subscriber for the arm state
   ros::Subscriber sub_arm_state_;
@@ -40,6 +40,8 @@ protected:
   ros::Subscriber sub_wrench_external_;
 
   ros::Subscriber sub_now_equilibrium_;
+
+  ros::Subscriber sub_accel_;
 
   ////// Publishers:
   // Publisher for the twist of arm endeffector
@@ -51,6 +53,14 @@ protected:
   Vector6d wrench_control_;
   Vector6d last_wrench_ft_frame_;
 
+  Vector6d accel_external_;
+  Vector3d linear_accel_external_;
+  Vector3d angular_accel_external_;
+  Vector3d angular_vel_external_;
+  Vector3d last_angular_vel_external_;
+
+  double time_;
+  double last_time_;
 
   ////// FORCE/TORQUE-SENSOR FILTER:
   // Parameters for the noisy wrench
@@ -72,21 +82,19 @@ protected:
   Quaterniond equilibrium_orientation_;
 
   // OUTPUT COMMANDS
-  // final arm desired velocity 
+  // final arm desired velocity
   Vector6d arm_desired_twist_final_;
 
   // limiting the workspace of the arm
   Vector6d workspace_limits_;
   double arm_max_vel_;
   double arm_max_acc_;
-  
 
   ////// STATE VARIABLES:
   // Arm state: position, orientation, and twist (in "ur5_arm_base_link")
   Vector3d arm_real_position_;
   Quaterniond arm_real_orientation_;
   Vector6d arm_real_twist_;
-
 
   // Transform from base_link to world
   Matrix6d rotation_base_;
@@ -106,20 +114,18 @@ protected:
   // Control
   void compute_admittance();
 
-
-
   // Callbacks
-  void state_arm_callback(const sim_admittance_control::PoseTwistConstPtr msg);
+  void state_arm_callback(const nav_msgs::OdometryConstPtr msg);
   void wrench_callback(const geometry_msgs::WrenchStampedConstPtr msg);
   void now_equilibrium_callback(const geometry_msgs::PoseStampedConstPtr msg);
+  void accel_callback(const sensor_msgs::ImuConstPtr msg);
 
   // Util
-  bool get_rotation_matrix(Matrix6d & rotation_matrix,tf::TransformListener & listener,std::string from_frame,  std::string to_frame);
+  bool get_rotation_matrix(Matrix6d &rotation_matrix, tf::TransformListener &listener, std::string from_frame, std::string to_frame);
 
   void limit_to_workspace();
 
   void send_commands_to_robot();
-
 
 public:
   AdmittanceController(ros::NodeHandle &n, double frequency,

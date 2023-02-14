@@ -1,0 +1,6 @@
+<launch>
+    <include file="$(find sim_admittance_control)/launch/admittance_controller.launch"/>
+
+    <include file="$(find sim_general_planning)/launch/general_arm_planning.launch"/>
+
+</launch>
