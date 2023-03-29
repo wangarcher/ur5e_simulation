@@ -1,0 +1,24 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+
+    <gui>
+      <plugin name="puzzle_gui_plugin" filename="libPuzzleGUIPlugin.so"/>
+    </gui>
+
+    <!-- A global light source -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- A ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- The puzzle -->
+    <include>
+      <uri>model://puzzle_ball_joints</uri>
+    </include>
+  </world>
+</sdf>
