@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sim" >
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="sim">
 
     <xacro:include filename="$(find sim_description)/urdf/xacro/common.gazebo.xacro" />
     <xacro:include filename="$(find sim_description)/urdf/xacro/ur5e.urdf.xacro" />
@@ -16,15 +16,22 @@
         elbow_joint_lower_limit="${-2.0*pi}" elbow_joint_upper_limit="${2.0*pi}"
         wrist_1_lower_limit="${-2.0*pi}" wrist_1_upper_limit="${2.0*pi}"
         wrist_2_lower_limit="${-2.0*pi}" wrist_2_upper_limit="${2.0*pi}"
-        wrist_3_lower_limit="${-2.0*pi}" wrist_3_upper_limit="${2.0*pi}"/>
+        wrist_3_lower_limit="${-2.0*pi}" wrist_3_upper_limit="${2.0*pi}" />
 
 
-    <link name="world"/>
-    <joint name="fixed" type="fixed">
-        <origin xyz="${manipulator_offset_x} ${manipulator_offset_y} ${manipulator_offset_z}" rpy="0 0 0" />
-        <parent link="world"/>
-        <child link="base_table"/>
-    </joint>
+    <material name="Aquamarine1">
+        <color rgba="0.5 1 0.85 1" />
+    </material>
+    <material name="white">
+        <color rgba="1 1 1 1" />
+    </material>
+    <material name="MediumBlue">
+        <color rgba="0 0 0.8 1" />
+    </material>
+    <material name="Tomato">
+        <color rgba="1 0.4 0.36 1" />
+    </material>
+    <link name="world" />
 
     <link name="base_table">
         <visual>
@@ -32,34 +39,302 @@
             <geometry>
                 <box size="0.7 0.7 0.1" />
             </geometry>
+            <material name="white" />
         </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="1.0 1.0 0.1" />
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="100" />
+            <inertia
+                ixx="8.5" ixy="0.0" ixz="0.0"
+                iyy="8.5" iyz="0.0"
+                izz="17" />
+        </inertial>
         <surface>
             <friction>
                 <ode>
-                <mu>100</mu>
-                <mu2>100</mu2>
+                    <mu>100</mu>
+                    <mu2>100</mu2>
                 </ode>
             </friction>
         </surface>
     </link>
 
+    <joint name="fixed" type="fixed">
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <parent link="world" />
+        <child link="base_table" />
+    </joint>
+
+    <link name="x_axle">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="1.0 0.03 0.03" />
+            </geometry>
+            <material name="Aquamarine1" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="1.0 0.03 0.03" />
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="10" />
+            <inertia
+                ixx="0.02" ixy="0.0" ixz="0.0"
+                iyy="0.85" iyz="0.0"
+                izz="0.85" />
+        </inertial>
+        <surface>
+            <friction>
+                <ode>
+                    <mu>100</mu>
+                    <mu2>100</mu2>
+                </ode>
+            </friction>
+        </surface>
+    </link>
+
+    <joint name="x_joint" type="prismatic">
+        <origin xyz="0 0 0.1" rpy="0 0 0"></origin>
+        <parent link="base_table" />
+        <child link="x_axle" />
+        <axis xyz="1 0 0" />
+        <limit effort="30" velocity="100.0" lower="-5" upper="5" />
+    </joint>
+
+    <link name="y_axle">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.03 1.0 0.03" />
+            </geometry>
+            <material name="MediumBlue" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.03 1.0 0.03" />
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="10" />
+            <inertia
+                ixx="0.85" ixy="0.0" ixz="0.0"
+                iyy="0.02" iyz="0.0"
+                izz="0.85" />
+        </inertial>
+        <surface>
+            <friction>
+                <ode>
+                    <mu>100</mu>
+                    <mu2>100</mu2>
+                </ode>
+            </friction>
+        </surface>
+    </link>
+
+    <joint name="y_joint" type="prismatic">
+        <origin xyz="0 0 0" rpy="0 0 0"></origin>
+        <parent link="x_axle" />
+        <child link="y_axle" />
+        <axis xyz="0 1 0" />
+        <limit effort="30" velocity="100.0" lower="-5" upper="5" />
+    </joint>
+
+    <link name="z_axle">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.03 0.03 0.10" />
+            </geometry>
+            <material name="Aquamarine1" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.03 0.03 0.03" />
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="10" />
+            <inertia
+                ixx="0.02" ixy="0.0" ixz="0.0"
+                iyy="0.85" iyz="0.0"
+                izz="0.85" />
+        </inertial>
+        <surface>
+            <friction>
+                <ode>
+                    <mu>100</mu>
+                    <mu2>100</mu2>
+                </ode>
+            </friction>
+        </surface>
+    </link>
+
+    <joint name="z_joint" type="prismatic">
+        <origin xyz="0 0 1.0" rpy="0 0 0"></origin>
+        <parent link="y_axle" />
+        <child link="z_axle" />
+        <axis xyz="0 0 1" />
+        <limit effort="30000000" velocity="100.0" lower="-0.5" upper="5.0" />
+    </joint>
+
+    <link name="plate">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.05 0.05 0.01" />
+            </geometry>
+            <material name="Tomato" />
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.2 0.2 0.05" />
+            </geometry>
+        </collision>
+        <inertial>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <mass value="1" />
+            <inertia
+                ixx="0.01" ixy="0.0" ixz="0.0"
+                iyy="0.01" iyz="0.0"
+                izz="0.01" />
+        </inertial>
+        <surface>
+            <friction>
+                <ode>
+                    <mu>100</mu>
+                    <mu2>100</mu2>
+                </ode>
+            </friction>
+        </surface>
+    </link>
+
+    <joint name="r_joint" type="revolute">
+        <origin xyz="0 0 0.06" rpy="0 0 0"></origin>
+        <parent link="z_axle" />
+        <child link="plate" />
+        <axis xyz="0 0 1" />
+        <limit effort="30" velocity="100.0" lower="-6.28" upper="6.28" />
+    </joint>
+
     <joint name="associate_joint" type="fixed">
         <origin xyz="${manipulator_offset_x} ${manipulator_offset_y} ${manipulator_offset_z}" rpy="0 0 0" />
-        <parent link="base_table"/>
-        <child link="base_link"/>
+        <parent link="plate" />
+        <child link="base_link" />
+        <axis xyz="0 0 1" />
     </joint>
 
     <gazebo>
-      <plugin name="p3d_base_controller" filename="libgazebo_ros_p3d.so">
-        <alwaysOn>true</alwaysOn>
-        <updateRate>50.0</updateRate>
-        <bodyName>ee_link</bodyName>
-        <topicName>wrist_pose_ground_truth</topicName>
-        <gaussianNoise>0.0</gaussianNoise>
-        <frameName>world</frameName>
-        <xyzOffsets>0 0 0</xyzOffsets>
-        <rpyOffsets>0 0 0</rpyOffsets>
-      </plugin>
+        <plugin name="p3d_base_controller" filename="libgazebo_ros_p3d.so">
+            <alwaysOn>true</alwaysOn>
+            <updateRate>50.0</updateRate>
+            <bodyName>ee_link</bodyName>
+            <topicName>ee_pose_ground_truth</topicName>
+            <gaussianNoise>0.0</gaussianNoise>
+            <frameName>world</frameName>
+            <xyzOffsets>0 0 0</xyzOffsets>
+            <rpyOffsets>0 0 0</rpyOffsets>
+        </plugin>
     </gazebo>
 
+    <gazebo>
+        <plugin name="p3d_base_controller" filename="libgazebo_ros_p3d.so">
+            <alwaysOn>true</alwaysOn>
+            <updateRate>50.0</updateRate>
+            <bodyName>base_link</bodyName>
+            <topicName>base_pose_ground_truth</topicName>
+            <gaussianNoise>0.0</gaussianNoise>
+            <frameName>world</frameName>
+            <xyzOffsets>0 0 0</xyzOffsets>
+            <rpyOffsets>0 0 0</rpyOffsets>
+        </plugin>
+    </gazebo>
+
+    <gazebo reference="ee_link">
+        <gravity>true</gravity>
+        <sensor name="imu_sensor" type="imu">
+            <always_on>true</always_on>
+            <update_rate>100</update_rate>
+            <visualize>true</visualize>
+            <topic>__default_topic__</topic>
+            <plugin filename="libgazebo_ros_imu_sensor.so" name="imu_plugin">
+                <topicName>imu</topicName>
+                <bodyName>ee_link</bodyName>
+                <updateRateHZ>100.0</updateRateHZ>
+                <gaussianNoise>0.0</gaussianNoise>
+                <xyzOffset>0 0 0</xyzOffset>
+                <rpyOffset>0 0 0</rpyOffset>
+                <frameName>ee_link</frameName>
+            </plugin>
+            <pose>0 0 0 0 0 0</pose>
+        </sensor>
+    </gazebo>
+    <gazebo>
+        <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
+          <alwaysOn>true</alwaysOn>
+          <bodyName>ee_link</bodyName>
+          <topicName>imu2</topicName>
+          <serviceName>imu_service</serviceName>
+          <gaussianNoise>0.0</gaussianNoise>
+          <updateRate>20.0</updateRate>
+        </plugin>
+    </gazebo>
+
+    <transmission name="x_joint_trans">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="x_joint">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="x_joint_motor">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <transmission name="y_joint_trans">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="y_joint">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="y_joint_motor">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+
+    <transmission name="z_joint_trans">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="z_joint">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="z_joint_motor">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
+    
+    <transmission name="r_joint_trans">
+        <type>transmission_interface/SimpleTransmission</type>
+        <joint name="r_joint">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+        </joint>
+        <actuator name="r_joint_motor">
+            <hardwareInterface>hardware_interface/VelocityJointInterface</hardwareInterface>
+            <mechanicalReduction>1</mechanicalReduction>
+        </actuator>
+    </transmission>
 </robot>

@@ -1,22 +1,23 @@
 #include "PIDController.h"
 
 PIDController::PIDController(ros::NodeHandle &n,
-    double frequency,
-    std::string topic_arm_command,
-    std::string topic_arm_state,
-    std::vector<double> K_p,
-    std::vector<double> K_i,
-    std::vector<double> K_d,
-    std::vector<double> workspace_limits,
-    double arm_max_vel,
-    double arm_acc_upper_limit,
-    double arm_acc_lower_limit) :
-  nh_(n), loop_rate_(frequency),
-  K_p_(K_p.data()),K_i_(K_i.data()), K_d_(K_d.data()),
-  workspace_limits_(workspace_limits.data()),
-  arm_max_vel_(arm_max_vel),
-  arm_acc_upper_limit_(arm_acc_upper_limit),
-  arm_acc_lower_limit_(arm_acc_lower_limit)
+                             double frequency,
+                             std::string topic_arm_command,
+                             std::string topic_arm_state,
+                             std::vector<double> K_p,
+                             std::vector<double> K_i,
+                             std::vector<double> K_d,
+                             std::vector<double> N_p,
+                             std::vector<double> N_d,
+                             std::vector<double> workspace_limits,
+                             double arm_max_vel,
+                             double arm_acc_upper_limit,
+                             double arm_acc_lower_limit) : nh_(n), loop_rate_(frequency),
+                                                           K_p_(K_p.data()), K_i_(K_i.data()), K_d_(K_d.data()), N_p_(N_p.data()), N_d_(N_d.data()),
+                                                           workspace_limits_(workspace_limits.data()),
+                                                           arm_max_vel_(arm_max_vel),
+                                                           arm_acc_upper_limit_(arm_acc_upper_limit),
+                                                           arm_acc_lower_limit_(arm_acc_lower_limit)
 {
   ///// Subscribers
   sub_arm_state_ = nh_.subscribe(topic_arm_state, 1,
@@ -27,8 +28,20 @@ PIDController::PIDController(ros::NodeHandle &n,
                                        &PIDController::now_equilibrium_callback, this,
                                        ros::TransportHints().reliable().tcpNoDelay());
 
-  ////// Publishers
+  sub_base_state_ = nh_.subscribe("/base_pose_ground_truth", 1,
+                                  &PIDController::base_state_callback, this,
+                                  ros::TransportHints().reliable().tcpNoDelay());
+
+  sub_presuppose_ = nh_.subscribe("/presuppose", 1,
+                                  &PIDController::presuppose_callback, this,
+                                  ros::TransportHints().reliable().tcpNoDelay());
+
+  sub_ee_ground_truth_ = nh_.subscribe("/ee_pose_ground_truth", 1,
+                                       &PIDController::ee_ground_truth_state_callback, this,
+                                       ros::TransportHints().reliable().tcpNoDelay());
+  // Publishers
   pub_arm_cmd_ = nh_.advertise<geometry_msgs::Twist>(topic_arm_command, 1);
+  pub_feedback_ = nh_.advertise<geometry_msgs::Twist>("/check", 1);
 
   // Init integrator
   arm_desired_twist_final_.setZero();
@@ -36,7 +49,7 @@ PIDController::PIDController(ros::NodeHandle &n,
   // last_arm_real_twist_.setZero();
   last_error_.setZero();
   // total_error_.setZero();
-
+  pid_flag_ = false;
   transformation = false;
   pid_ready_flag_ = false;
   eps_ = 0.001;
@@ -46,51 +59,105 @@ PIDController::PIDController(ros::NodeHandle &n,
 
   tf::TransformListener tf_listener;
   tf::StampedTransform transform;
-  Matrix3d rotation_from_to,rotation_repair;
+  Matrix3d rotation_from_to, rotation_repair;
   bool flag = true;
-  rotation_repair << -1.,0.,0.,0.,-1.,0.,0.,0.,1.;
-  
+  rotation_repair << -1., 0., 0., 0., -1., 0., 0., 0., 1.;
+
   while (flag)
   {
     ros::spinOnce();
     // ROS_INFO("ur5e_mode is: %d", ur5e_mode_);
-    try 
+    try
     {
-      tf_listener.lookupTransform("base_link", "ee_link",ros::Time(0), transform);
+      tf_listener.lookupTransform("base_link", "ee_link", ros::Time(0), transform);
       equilibrium_position_ << transform.getOrigin().getX(), transform.getOrigin().getY(), transform.getOrigin().getZ();
       tf::matrixTFToEigen(transform.getBasis(), rotation_from_to);
-      equilibrium_orientation_ = Quaterniond(rotation_repair*rotation_from_to);
-      equilibrium_orientation_.coeffs() << equilibrium_orientation_.coeffs() /equilibrium_orientation_.coeffs().norm();
+      equilibrium_orientation_ = Quaterniond(rotation_repair * rotation_from_to);
+      equilibrium_orientation_.coeffs() << equilibrium_orientation_.coeffs() / equilibrium_orientation_.coeffs().norm();
       flag = false;
     }
-    catch (tf::TransformException ex) 
+    catch (tf::TransformException ex)
     {
       flag = true;
-      ROS_WARN_STREAM_THROTTLE(1, "Waiting for TF from: " << "base_link" << " to: " << "ee_link" );
+      ROS_WARN_STREAM_THROTTLE(1, "Waiting for TF from: "
+                                      << "base_link"
+                                      << " to: "
+                                      << "ee_link");
       sleep(1);
     }
   }
   arm_real_orientation_ = equilibrium_orientation_;
-  arm_real_position_ = equilibrium_position_ ;
+  arm_real_position_ = equilibrium_position_;
 }
 
 ///////////////////////////////////////////////////////////////
 ////////////////////////// Callbacks //////////////////////////
 ///////////////////////////////////////////////////////////////
-void PIDController::state_arm_callback(const nav_msgs::OdometryConstPtr msg) 
+void PIDController::state_arm_callback(const nav_msgs::OdometryConstPtr msg)
 {
-    arm_real_position_ << msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z;
+  arm_real_position_ << msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z;
 
-    arm_real_orientation_.coeffs() << msg->pose.pose.orientation.x,
-                                      msg->pose.pose.orientation.y,
-                                      msg->pose.pose.orientation.z,
-                                      msg->pose.pose.orientation.w;
+  arm_real_orientation_.coeffs() << msg->pose.pose.orientation.x,
+      msg->pose.pose.orientation.y,
+      msg->pose.pose.orientation.z,
+      msg->pose.pose.orientation.w;
 
-    // arm_real_twist_ << msg->twist.linear.x, msg->twist.linear.y, msg->twist.linear.z,
-    //                    msg->twist.angular.x, msg->twist.angular.y, msg->twist.angular.z;
+  // arm_real_twist_ << msg->twist.linear.x, msg->twist.linear.y, msg->twist.linear.z,
+  //                    msg->twist.angular.x, msg->twist.angular.y, msg->twist.angular.z;
 }
 
+void PIDController::base_state_callback(const nav_msgs::OdometryConstPtr msg)
+{
+  base_real_position_ << msg->pose.pose.position.x, msg->pose.pose.position.y, msg->pose.pose.position.z;
 
+  base_real_orientation_.coeffs() << msg->pose.pose.orientation.x,
+      msg->pose.pose.orientation.y,
+      msg->pose.pose.orientation.z,
+      msg->pose.pose.orientation.w;
+
+  base_real_twist_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z,
+      msg->twist.twist.angular.x, msg->twist.twist.angular.y, msg->twist.twist.angular.z;
+  Vector3d arm_map_translation = base_real_orientation_.toRotationMatrix() * arm_real_position_ + base_real_position_;
+  std::cout << "arm_map_translation" << arm_map_translation.transpose() << std::endl;
+  Vector3d mid = base_real_twist_.bottomRows(3);
+  model_affect_ee_twist_.bottomRows(3) = base_real_twist_.bottomRows(3);
+  model_affect_ee_twist_.topRows(3) = base_real_twist_.topRows(3) + mid.cross(arm_map_translation);
+
+  ros::Duration duration = loop_rate_.expectedCycleTime();
+  double time_diff = duration.toSec();
+  model_affect_ee_acc_ = (model_affect_ee_twist_ - last_model_effect_ee_twist_) / time_diff;
+  last_model_effect_ee_twist_ = model_affect_ee_twist_;
+
+  geometry_msgs::Twist model_affect_ee_twist_msgs;
+  model_affect_ee_twist_msgs.linear.x = model_affect_ee_twist_(0);
+  model_affect_ee_twist_msgs.linear.y = model_affect_ee_twist_(1);
+  model_affect_ee_twist_msgs.linear.z = model_affect_ee_twist_(2);
+  model_affect_ee_twist_msgs.angular.x = model_affect_ee_twist_(3);
+  model_affect_ee_twist_msgs.angular.y = model_affect_ee_twist_(4);
+  model_affect_ee_twist_msgs.angular.z = model_affect_ee_twist_(5);
+  pub_feedback_.publish(model_affect_ee_twist_msgs);
+
+  // ROS_INFO("getting the model state");
+  std::cout << "for feedforward: " << model_affect_ee_twist_.transpose() << std::endl;
+}
+
+void PIDController::ee_ground_truth_state_callback(const nav_msgs::OdometryConstPtr msg)
+{
+  std::cout << "time: " << msg->header.stamp.toSec() << std::endl;
+  std::cout << "ee real wrist: " << msg->twist.twist.linear.x << ", " << msg->twist.twist.linear.y << ", " << msg->twist.twist.linear.z << ", "
+            << msg->twist.twist.angular.x << ", " << msg->twist.twist.angular.y << ", " << msg->twist.twist.angular.z << std::endl;
+  std::cout << "----------------------------------------------------------------------------------------------------" << std::endl;
+  ee_map_real_twist_ << msg->twist.twist.linear.x, msg->twist.twist.linear.y, msg->twist.twist.linear.z,
+      msg->twist.twist.angular.x, msg->twist.twist.angular.y, msg->twist.twist.angular.z;
+}
+
+void PIDController::presuppose_callback(const geometry_msgs::TwistConstPtr msg)
+{
+  // std::cout << "presuppose_twist: " << msg->linear.x << ", " << msg->linear.y << ", " << msg->linear.z << ", "
+  //  << msg->angular.x << ", " << msg->angular.y << ", " << msg->angular.z << std::endl;
+  // std::cout << "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX" << std::endl;
+  model_real_ << msg->linear.x, msg->linear.y, msg->linear.z, msg->angular.x, msg->angular.y, msg->angular.z;
+}
 
 void PIDController::now_equilibrium_callback(const geometry_msgs::PoseStampedConstPtr msg)
 {
@@ -100,11 +167,11 @@ void PIDController::now_equilibrium_callback(const geometry_msgs::PoseStampedCon
   equilibrium_position_(2) = msg->pose.position.z;
 
   equilibrium_orientation_.coeffs() << msg->pose.orientation.x,
-                                       msg->pose.orientation.y,
-                                       msg->pose.orientation.z,
-                                       msg->pose.orientation.w;
+      msg->pose.orientation.y,
+      msg->pose.orientation.z,
+      msg->pose.orientation.w;
 
-  if(msg->header.frame_id == "pid")
+  if (msg->header.frame_id == "pid")
   {
     pid_ready_flag_ = true;
   }
@@ -113,12 +180,12 @@ void PIDController::now_equilibrium_callback(const geometry_msgs::PoseStampedCon
 ///////////////////////////////////////////////////////////////
 ///////////////////// Control Loop ////////////////////////////
 ///////////////////////////////////////////////////////////////
-void PIDController::run() 
+void PIDController::run()
 {
   ROS_INFO("Running the pid control loop .................");
-  while (nh_.ok()) 
+  while (nh_.ok())
   {
-    if(pid_ready_flag_)
+    if (pid_ready_flag_)
     {
       // lowpass_filter();
       // Admittance Dynamics computation
@@ -142,114 +209,134 @@ void PIDController::run()
 ///////////////////////////////////////////////////////////////
 ///////////////////// PID Dynamics /////////////////////
 ///////////////////////////////////////////////////////////////
-void PIDController::compute_pid() 
+void PIDController::compute_pid()
 {
   Vector6d arm_desired_accelaration;
   Vector6d calculated_arm_accelaration;
   Vector6d error;
   Vector6d calculated_arm_twist;
 
-  if (equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0) 
+  if (equilibrium_orientation_.coeffs().dot(arm_real_orientation_.coeffs()) < 0.0)
   {
     arm_real_orientation_.coeffs() << -arm_real_orientation_.coeffs();
   }
-  Eigen::Quaterniond quat_rot_err(arm_real_orientation_* equilibrium_orientation_.inverse());
-  if (quat_rot_err.coeffs().norm() > 1e-3) 
+  Eigen::Quaterniond quat_rot_err(arm_real_orientation_ * equilibrium_orientation_.inverse());
+  if (quat_rot_err.coeffs().norm() > 1e-3)
   {
     // Normalize error quaternion
     quat_rot_err.coeffs() << quat_rot_err.coeffs() / quat_rot_err.coeffs().norm();
   }
 
   Eigen::AngleAxisd err_arm_des_orient(quat_rot_err);
-  error.bottomRows(3) << err_arm_des_orient.axis() *err_arm_des_orient.angle();
+  error.bottomRows(3) << err_arm_des_orient.axis() * err_arm_des_orient.angle();
   error.topRows(3) = arm_real_position_ - equilibrium_position_;
 
   calculated_arm_twist = error - last_error_;
 
-  arm_desired_twist_final_ = - K_p_ * error - K_d_ * calculated_arm_twist;
+  // if (model_real_.norm() > 0.01)
+  // {
+  //   pid_flag_ = true;
+  // }
+  // if (pid_flag_)
+  // {
+  //   error.setZero();
+  //   calculated_arm_twist.setZero();
+  // }
+  std::cout << "error: " << error.transpose() << std::endl;
+
+  arm_desired_twist_final_ = -K_p_ * error - K_d_ * calculated_arm_twist - N_p_ * model_affect_ee_twist_ - N_d_ * model_affect_ee_acc_;
   ros::Duration duration = loop_rate_.expectedCycleTime();
   double time_diff = duration.toSec();
-  
-  last_error_ =  error;
+
+  last_error_ = error;
   last_arm_desired_twist_final_ = arm_desired_twist_final_;
 }
 
 ///////////////////////////////////////////////////////////////
 //////////////////// Limit to workspace////////////////////////
 ///////////////////////////////////////////////////////////////
-void PIDController::limit_to_workspace() 
+void PIDController::limit_to_workspace()
 {
-    if (arm_real_position_(0) < workspace_limits_(0) || arm_real_position_(0) > workspace_limits_(1)) {
-        ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  x = "
-                << arm_real_position_(0) << " not in [" << workspace_limits_(0) << " , "
-                << workspace_limits_(1) << "]");
-    }
+  if (arm_real_position_(0) < workspace_limits_(0) || arm_real_position_(0) > workspace_limits_(1))
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "Out of permitted workspace.  x = "
+                                    << arm_real_position_(0) << " not in [" << workspace_limits_(0) << " , "
+                                    << workspace_limits_(1) << "]");
+  }
 
-    if (arm_real_position_(1) < workspace_limits_(2) || arm_real_position_(1) > workspace_limits_(3)) {
-        ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  y = "
-                << arm_real_position_(1) << " not in [" << workspace_limits_(2) << " , "
-                << workspace_limits_(3) << "]");
-    }
+  if (arm_real_position_(1) < workspace_limits_(2) || arm_real_position_(1) > workspace_limits_(3))
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "Out of permitted workspace.  y = "
+                                    << arm_real_position_(1) << " not in [" << workspace_limits_(2) << " , "
+                                    << workspace_limits_(3) << "]");
+  }
 
-    if (arm_real_position_(2) < workspace_limits_(4) || arm_real_position_(2) > workspace_limits_(5)) {
-        ROS_WARN_STREAM_THROTTLE (1, "Out of permitted workspace.  z = "
-                << arm_real_position_(2) << " not in [" << workspace_limits_(4) << " , "
-                << workspace_limits_(5) << "]");
-    }
+  if (arm_real_position_(2) < workspace_limits_(4) || arm_real_position_(2) > workspace_limits_(5))
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "Out of permitted workspace.  z = "
+                                    << arm_real_position_(2) << " not in [" << workspace_limits_(4) << " , "
+                                    << workspace_limits_(5) << "]");
+  }
 
-    if (arm_desired_twist_final_(0) < 0 && arm_real_position_(0) < workspace_limits_(0)) {
-        arm_desired_twist_final_(0) = 0;
-    }
+  if (arm_desired_twist_final_(0) < 0 && arm_real_position_(0) < workspace_limits_(0))
+  {
+    arm_desired_twist_final_(0) = 0;
+  }
 
-    if (arm_desired_twist_final_(0) > 0 && arm_real_position_(0) > workspace_limits_(1)) {
-        arm_desired_twist_final_(0) = 0;
-    }
+  if (arm_desired_twist_final_(0) > 0 && arm_real_position_(0) > workspace_limits_(1))
+  {
+    arm_desired_twist_final_(0) = 0;
+  }
 
-    if (arm_desired_twist_final_(1) < 0 && arm_real_position_(1) < workspace_limits_(2)) {
-        arm_desired_twist_final_(1) = 0;
-    }
+  if (arm_desired_twist_final_(1) < 0 && arm_real_position_(1) < workspace_limits_(2))
+  {
+    arm_desired_twist_final_(1) = 0;
+  }
 
-    if (arm_desired_twist_final_(1) > 0 && arm_real_position_(1) > workspace_limits_(3)) {
-        arm_desired_twist_final_(1) = 0;
-    }
+  if (arm_desired_twist_final_(1) > 0 && arm_real_position_(1) > workspace_limits_(3))
+  {
+    arm_desired_twist_final_(1) = 0;
+  }
 
-    if (arm_desired_twist_final_(2) < 0 && arm_real_position_(2) < workspace_limits_(4)) {
-        arm_desired_twist_final_(2) = 0;
-    }
+  if (arm_desired_twist_final_(2) < 0 && arm_real_position_(2) < workspace_limits_(4))
+  {
+    arm_desired_twist_final_(2) = 0;
+  }
 
-    if (arm_desired_twist_final_(2) > 0 && arm_real_position_(2) > workspace_limits_(5)) {
-        arm_desired_twist_final_(2) = 0;
-    }
+  if (arm_desired_twist_final_(2) > 0 && arm_real_position_(2) > workspace_limits_(5))
+  {
+    arm_desired_twist_final_(2) = 0;
+  }
 
-    // velocity of the arm along x, y, and z axis
-    double norm_vel_des = (arm_desired_twist_final_.segment(0, 3)).norm();
+  // velocity of the arm along x, y, and z axis
+  double norm_vel_des = (arm_desired_twist_final_.segment(0, 3)).norm();
 
-    if (norm_vel_des > arm_max_vel_) {
-        ROS_WARN_STREAM_THROTTLE(1, "pid generate fast arm movements! velocity norm: " << norm_vel_des);
-        arm_desired_twist_final_.segment(0, 3) *= (arm_max_vel_ / norm_vel_des);
-    }
+  if (norm_vel_des > arm_max_vel_)
+  {
+    ROS_WARN_STREAM_THROTTLE(1, "pid generate fast arm movements! velocity norm: " << norm_vel_des);
+    arm_desired_twist_final_.segment(0, 3) *= (arm_max_vel_ / norm_vel_des);
+  }
 }
 
 ///////////////////////////////////////////////////////////////
 //////////////////// COMMANDING THE ROBOT /////////////////////
 ///////////////////////////////////////////////////////////////
-void PIDController::send_commands_to_robot() 
+void PIDController::send_commands_to_robot()
 {
   geometry_msgs::Twist arm_twist_cmd;
-  arm_twist_cmd.linear.x  = arm_desired_twist_final_(0);
-  arm_twist_cmd.linear.y  = arm_desired_twist_final_(1);
-  arm_twist_cmd.linear.z  = arm_desired_twist_final_(2);
+  arm_twist_cmd.linear.x = arm_desired_twist_final_(0);
+  arm_twist_cmd.linear.y = arm_desired_twist_final_(1);
+  arm_twist_cmd.linear.z = arm_desired_twist_final_(2);
   arm_twist_cmd.angular.x = arm_desired_twist_final_(3);
   arm_twist_cmd.angular.y = arm_desired_twist_final_(4);
   arm_twist_cmd.angular.z = arm_desired_twist_final_(5);
   pub_arm_cmd_.publish(arm_twist_cmd);
 }
 
-
 //////////////////////
 /// INITIALIZATION ///
 //////////////////////
-void PIDController::wait_for_transformations() 
+void PIDController::wait_for_transformations()
 {
   tf::TransformListener listener;
   Matrix6d rot_matrix;
@@ -259,11 +346,13 @@ void PIDController::wait_for_transformations()
   //     sleep(1);
   // }
 
-  while (!get_rotation_matrix(rotation_base_, listener, "base_link", "base_link")) {
+  while (!get_rotation_matrix(rotation_base_, listener, "base_link", "base_link"))
+  {
     sleep(1);
   }
 
-  while (!get_rotation_matrix(rot_matrix, listener, "base_link", "ee_link")) {
+  while (!get_rotation_matrix(rot_matrix, listener, "base_link", "ee_link"))
+  {
     sleep(1);
   }
   transformation = true;
@@ -275,14 +364,14 @@ void PIDController::wait_for_transformations()
 /// UTIL ///
 ////////////
 
-bool PIDController::get_rotation_matrix(Matrix6d & rotation_matrix, 
-                                        tf::TransformListener & listener, 
+bool PIDController::get_rotation_matrix(Matrix6d &rotation_matrix,
+                                        tf::TransformListener &listener,
                                         std::string from_frame,
                                         std::string to_frame)
 {
   tf::StampedTransform transform;
   Matrix3d rotation_from_to;
-  try 
+  try
   {
     listener.lookupTransform(from_frame, to_frame,
                              ros::Time(0), transform);
@@ -291,10 +380,10 @@ bool PIDController::get_rotation_matrix(Matrix6d & rotation_matrix,
     rotation_matrix.topLeftCorner(3, 3) = rotation_from_to;
     rotation_matrix.bottomRightCorner(3, 3) = rotation_from_to;
   }
-  catch (tf::TransformException ex) 
+  catch (tf::TransformException ex)
   {
     rotation_matrix.setZero();
-    ROS_WARN_STREAM_THROTTLE(1, "Waiting for TF from: " << from_frame << " to: " << to_frame );
+    ROS_WARN_STREAM_THROTTLE(1, "Waiting for TF from: " << from_frame << " to: " << to_frame);
     return false;
   }
 
