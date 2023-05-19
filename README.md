@@ -61,3 +61,25 @@ To run the cartesian pid control
 ```
 roslaunch sim_general_planning unity.launch
 ```
+
+### Others
+##### About twelve_monkey
+
+Find a reasonable manipulation path through tons of object poses.
+
+```
+roslaunch sim_general_planning twelve_monkeys.launch
+```
+
+The method is simple.
+
+1. Assume there is ellipse which focus on the start and end poses.
+2. Find k nearest object poses.
+3. Rank them according to the distance to the start and end poses.
+4. Done
+
+Result
+- Bule point: object poses
+- Pink arrow: Manipulation pose
+- Green Path: Manipulation path
+![result](docs/img.png)

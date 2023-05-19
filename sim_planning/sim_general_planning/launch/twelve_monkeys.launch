@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="sim_general_planning" type="twelve_monkeys" name="twelve_monkeys"  output="screen" />
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sim_general_planning)/rviz/all.rviz" required="true" />
+</launch>

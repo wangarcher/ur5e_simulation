@@ -256,3 +256,8 @@ add_executable(
   x_arm_planning 
   src/x_arm_planning_main.cpp)
 target_link_libraries(x_arm_planning ${catkin_LIBRARIES})
+
+add_executable(
+  twelve_monkeys 
+  src/twelve_monkeys.cpp)
+target_link_libraries(twelve_monkeys ${catkin_LIBRARIES})
