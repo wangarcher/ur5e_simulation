@@ -58,6 +58,10 @@ public:
 
     std::vector<PoseInfo> getSequence(std::vector<PoseInfo> &k_nearest_poses_info,
                                       int m, int n, int k);
+
+    std::vector<PoseInfo> getSequence_1(std::vector<PoseInfo> &k_nearest_poses_info,
+                                        int k,
+                                        const geometry_msgs::PoseStamped &start_pose);
 };
 
 void GeneralPickPlace::obj_visual_callback(const geometry_msgs::PoseStamped &odom)
@@ -147,6 +151,32 @@ std::vector<PoseInfo> GeneralPickPlace::getSequence(std::vector<PoseInfo> &k_nea
     return sequence;
 }
 
+std::vector<PoseInfo> GeneralPickPlace::getSequence_1(std::vector<PoseInfo> &k_nearest_poses_info,
+                                                      int k,
+                                                      const geometry_msgs::PoseStamped &start_pose)
+{
+    std::vector<PoseInfo> sequence;
+
+    for (int i = 0; i < k; i++)
+    {
+        sort(k_nearest_poses_info.begin(), k_nearest_poses_info.end(), [](PoseInfo a, PoseInfo b)
+             { return a.start_dist <= b.start_dist; });
+
+        sequence.push_back(k_nearest_poses_info[0]);
+        for (int j = 1; j < k_nearest_poses_info.size(); j++)
+        {
+            double start_dx = k_nearest_poses_info[j].pose.position.x - k_nearest_poses_info[0].pose.position.x;
+            double start_dy = k_nearest_poses_info[j].pose.position.y - k_nearest_poses_info[0].pose.position.y;
+            double start_dz = k_nearest_poses_info[j].pose.position.z - k_nearest_poses_info[0].pose.position.z;
+            k_nearest_poses_info[j].start_dist = std::sqrt(start_dx * start_dx + start_dy * start_dy + start_dz * start_dz);
+        }
+        std::vector<PoseInfo>::iterator erase = k_nearest_poses_info.begin();
+        k_nearest_poses_info.erase(erase);
+    }
+
+    return sequence;
+}
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "twelve_monkeys");
@@ -175,6 +205,7 @@ int main(int argc, char **argv)
     general_pick_place.pseudo_obj_squence_callback(obj_poses);
     k_nearest_poses_info = general_pick_place.getKNearest(obj_poses, start_pose, end_pose, 12);
     sequence = general_pick_place.getSequence(k_nearest_poses_info, 6, 6, 12);
+    // sequence = general_pick_place.getSequence_1(k_nearest_poses_info, 12, start_pose);
 
     while (n.ok())
     {
