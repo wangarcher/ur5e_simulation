@@ -28,6 +28,7 @@ find_package(catkin REQUIRED COMPONENTS
   controller_manager_msgs
 )
 
+find_package(PCL 1.7 REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -141,6 +142,7 @@ catkin_package(
 include_directories(
   include
   include "/usr/local/include/eigen3"
+  ${PCL_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
 )
 
@@ -260,4 +262,9 @@ target_link_libraries(x_arm_planning ${catkin_LIBRARIES})
 add_executable(
   twelve_monkeys 
   src/twelve_monkeys.cpp)
-target_link_libraries(twelve_monkeys ${catkin_LIBRARIES})
+target_link_libraries(twelve_monkeys ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
+add_executable(
+  hex_love 
+  src/hex_love.cpp)
+target_link_libraries(hex_love ${catkin_LIBRARIES} ${PCL_LIBRARIES})

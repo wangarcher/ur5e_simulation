@@ -83,3 +83,17 @@ Result
 - Pink arrow: Manipulation pose
 - Green Path: Manipulation path
 ![result](docs/img.png)
+
+##### About hex_love
+
+An alternative choise
+```
+roslaunch sim_general_planning hex_love.launch
+```
+
+The method is simple, too.
+
+K-means.
+
+Result
+![result](docs/hex_love.png)

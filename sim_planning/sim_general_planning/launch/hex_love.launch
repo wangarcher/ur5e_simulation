@@ -1,0 +1,5 @@
+<launch>
+    <node pkg="sim_general_planning" type="hex_love" name="hex_love"  output="screen" />
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find sim_general_planning)/rviz/hex.rviz" required="true" />
+</launch>
